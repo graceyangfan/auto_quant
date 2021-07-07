@@ -155,10 +155,14 @@ class Strategy():
         if  trade_side == "buy":
             ##percent =1 amount =0  percent = 0 amount =1 
             self.min_buy_amount = self.potential_buy_amount *(1.0-price_percent)
-            self.min_buy_amount = min(self.min_buy_amount,0.0)
-            self.min_buy_amount = max(self.min_buy_amount,self.potential_buy_amount)
+            self.min_buy_amount = max(self.min_buy_amount,0.0)
+            self.min_buy_amount = min(self.min_buy_amount,self.potential_buy_amount)
             self.min_buy_amount = round(self.min_buy_amount,self.amount_N)
             self.min_buy_balance = self.min_buy_amount*self.Buy_price
+            if self.min_buy_balance < self.min_buy_money:
+                return False
+            else:
+                return True
            
         elif trade_side == "sell":
             ##percent =1 amount =1  percent = 0 amount =0 
@@ -167,11 +171,10 @@ class Strategy():
             self.min_sell_amount = min(self.min_sell_amount,self.potential_sell_amount)
             self.min_sell_amount = round(self.min_sell_amount,self.amount_N)
             self.min_sell_balance = self.min_sell_amount*self.Sell_price
-            
-        if self.min_buy_balance < self.min_buy_money or self.min_sell_balance <self.min_sell_money:
-            return False 
-        else:
-            return True 
+            if self.min_sell_balance <self.min_sell_money:
+                return False 
+            else:
+                return True 
     
     def strategy_condition(self,short_period,long_period,signal_period,RSI_threshold):
         
@@ -205,6 +208,8 @@ class Strategy():
     def make_trade_dicts(self,short_period,long_period,signal_period,RSI_threshold):
         # 趋势判定是否买卖["buy","sell",False]
         Strategy_state = self.strategy_condition(short_period,long_period,signal_period,RSI_threshold)
+        if Strategy_state:
+            Log("Strategy_state",Strategy_state)
         ##(also update self.close_Arr in strategy_condition)
         if Strategy_state is False:
             return False 
@@ -262,5 +267,6 @@ def main():
         except:
                 pass 
         
+
 
 
