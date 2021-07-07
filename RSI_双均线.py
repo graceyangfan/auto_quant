@@ -153,7 +153,7 @@ class Strategy():
         hands_num > 1
         '''
         self.min_buy_amount = round(self.potential_buy_amount / hands_num,self.amount_N)
-        self.min_sell_amount = round(self.potential_buy_amount / hands_num,self.amount_N)        
+        self.min_sell_amount = round(self.potential_sell_amount / hands_num,self.amount_N)        
         self.min_buy_balance = self.min_buy_amount*self.Buy_price
         self.min_sell_balance = self.min_sell_amount*self.Sell_price
         
