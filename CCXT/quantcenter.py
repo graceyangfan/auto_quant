@@ -3,7 +3,9 @@ import backtrader as bt
 from backtrader import cerebro
 import time
 import ccxt as ccxt
-class AtomClass():
+import pandas as pd 
+
+class QuantCenter():
     def __init__(self,user_exchange):
         self.init_timestamp = time.time()
         self.exchange = user_exchange
@@ -11,11 +13,11 @@ class AtomClass():
         self.AmountPrecision= user_exchange.AmountPrecision
         self.PricePrecision= user_exchange.PricePrecision
     def get_account(self):
-        self.account = '___'
-        self.balance = '___'
-        self.frozenbalance = '___'
-        self.stocks = '___'
-        self.frozenstocks = '___'
+        self.account = None
+        self.balance = None
+        self.frozenbalance = None
+        self.stocks = None
+        self.frozenstocks = None
         
         self.symbol_stocks_name = self.symbol.split('/')[0]
         self.symbol_balance_name = self.symbol.split('/')[1]
@@ -30,61 +32,71 @@ class AtomClass():
             return False
         
     def get_ticker(self):
-        self.high = '___' 
-        self.low = '___'
-        self.Sell =  '___'
-        self.Buy =  '___'
-        self.last =  '___'
-        self.Volume = '___'
+        self.high = None
+        self.low = None
+        self.Sell =  None
+        self.Buy =  None
+        self.last =  None
+        self.Volume = None
         
         try:
             self.ticker = self.exchange.fetchTicker(self.symbol)
-            self.high = self.ticker['high']
-            self.low = self.ticker['low']
+            self.High = self.ticker['high']
+            self.Low = self.ticker['low']
             self.Sell =  self.ticker['ask']
             self.Buy =  self.ticker['bid']
-            self.last =  self.ticker['last']
-            self.bid_vol= self.ticker['bidVolume']
-            self.ask_vol= self.ticker['askVolume']
+            self.Last =  self.ticker['last']
+            self.BuyVol= self.ticker['bidVolume']
+            self.SellVol= self.ticker['askVolume']
             return True
         except:
             return False
         
     def get_depth(self):
-        self.asks = '___'
-        self.bids = '___'
+        self.asks = None
+        self.bids = None
         try:
             exchange_depth = self.exchange.fetch_order_book(self.symbol)
-            self.asks = exchange_depth.get('asks')
-            self.bids = exchange_depth.get("bids")
+            self.Asks = exchange_depth.get('asks')
+            self.Bids = exchange_depth.get("bids")
             return True
         except:
             return False
         
-    def get_ohlc_data(self, period='1m'):
-        self.ohlc_data =  '___'
+    def get_kline(self, period='1m'):
+        self.Kline =  None
         try:
-            self.ohlc_data = self.exchange.fetchOHLCV(self.symbol,period)
+            col=["timestamp","Open","Highest","Lowest","Close","Volume"]
+            self.Kline = pd.DataFrame(self.exchange.fetchOHLCV(self.symbol,period),columns=col)
+            self.Open_Arr = self.Kline.Open.to_numpy()
+            self.Highest_Arr = self.Kline.Highest.to_numpy()
+            self.Lowest_Arr = self.Kline.Lowest.to_numpy()
+            self.Close_Arr = self.Kline.Close.to_numpy()
+            self.Volume_Arr = self.Kline.Volume.to_numpy()
             return True
         except:
             return False
         
-    def create_order(self,order_type,order_side,price,amount):
+    def create_order(self,order_side,price,amount):
         try:
-            order_id = self.exchange.create_order(self.symbol,order_type,order_side, \
-                                              order_amount,order_price)["id"]
+            ## order_type = "market" "limit"
+            ## order_side = "buy" "sell "
+            if order_side == "buy":
+                order_id = self.exchange.create_limit_buy_order(self.symbol,amount,price)["id"]
+            elif order_side == "sell":
+                order_id = self.exchange.create_limit_sell_order(self.symbol,amount,price)["id"]
             time.sleep(1)
             self.get_account()
             return order_id 
         except:
             return False
     def get_order(self,or_id):
-        self.order_id= '___'
-        self.order_price = '___'
-        self.order_num = '___'
-        self.order_deal_um = '___'
-        self.order_avg_price = '___'
-        self.order_status = '___'
+        self.order_id= None
+        self.order_price =None
+        self.order_num = None
+        self.order_deal_um = None
+        self.order_avg_price = None
+        self.order_status = None
         
         try:
             self.order= self.exchange.fetchOrder(or_id,self.symbol)
@@ -98,13 +110,13 @@ class AtomClass():
         except:
             return False
     def cancel_order(self,or_id):
-        self.cancelresult= '___'
+        self.cancelresult= None
         try:
             self.cancelresult =self.exchange.cancelOrder(or_id,self.symbol)
             return True
         except:
             return False 
-    def refreash_data(self):
+    def refreash_data(self, period='1m'):
         '''
         刷新信息
         '''
@@ -115,9 +127,10 @@ class AtomClass():
         if not self.get_depth():
             return "False_on_get_Depth"
         try:
-            self.get_ohlc_data()
+            self.get_kline(period)
         except:
             return "False_on_ohlc_Data"
         
         return 'refreash_data_finish!'
+    
     
