@@ -32,12 +32,13 @@ class QuantCenter():
             return False
         
     def get_ticker(self):
-        self.high = None
-        self.low = None
+        self.High = None
+        self.Low = None
         self.Sell =  None
         self.Buy =  None
-        self.last =  None
-        self.Volume = None
+        self.Last =  None
+        self.BuyVol= None
+        self.SellVol= None
         
         try:
             self.ticker = self.exchange.fetchTicker(self.symbol)
@@ -53,8 +54,8 @@ class QuantCenter():
             return False
         
     def get_depth(self):
-        self.asks = None
-        self.bids = None
+        self.Asks = None
+        self.Bids = None
         try:
             exchange_depth = self.exchange.fetch_order_book(self.symbol)
             self.Asks = exchange_depth.get('asks')
@@ -110,12 +111,13 @@ class QuantCenter():
         except:
             return False
     def cancel_order(self,or_id):
-        self.cancelresult= None
+        self.cancel_result= None
         try:
-            self.cancelresult =self.exchange.cancelOrder(or_id,self.symbol)
+            self.cancel_result =self.exchange.cancelOrder(or_id,self.symbol)
             return True
         except:
-            return False 
+            return False
+    
     def refreash_data(self, period='1m'):
         '''
         刷新信息
@@ -132,5 +134,4 @@ class QuantCenter():
             return "False_on_ohlc_Data"
         
         return 'refreash_data_finish!'
-    
     
