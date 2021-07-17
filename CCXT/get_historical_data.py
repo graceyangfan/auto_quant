@@ -1,6 +1,19 @@
 ##安装fmz
 !git clone https://github.com/fmzquant/backtest_python.git
 !python setup.py install 
+##
+支持数据
+商品期货全品种: 格式如MA910，指数合约以000结尾，如MA000，主力连续合约以888结尾，如MA888。
+数字货币现货:
+okex.btc_usdt okex.eth_usdt okex.ltc_usdt okex.bch_usdt okex.etc_usdt
+bitfinex.btc_usdt bitfinex.eth_usdt bitfinex.ltc_usdt bitfinex.bch_usdt bitfinex.etc_usdt
+binance.btc_usdt binance.eth_usdt binance.ltc_usdt binance.bch_usdt binance.etc_usdt
+数字货币期货和永续合约
+futures_okex.btc.this_week futures_okex.btc.next_week futures_okex.btc.quarter
+futures_okex.eth.this_week futures_okex.eth.next_week futures_okex.eth.quarter
+futures_okex.eos.this_week futures_okex.eos.next_week futures_okex.eos.quarter
+futures_bitmex.bxbt
+经过测试huobi也可以使用
 ##获取历史数据
 from fmz import * 
 import numpy as np
