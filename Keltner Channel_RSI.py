@@ -118,7 +118,7 @@ class Keltner():
         self.upper = self.ema + self.Delta_ratio*self.atr
         self.lower = self.ema - self.Delta_ratio*self.atr
 ## define Stragety 
-
+##买入点捕捉不好，卖出点有点滞后
 class Strategy():
     def __init__(self,args):
         self.args =args 
