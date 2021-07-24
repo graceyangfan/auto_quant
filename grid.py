@@ -165,26 +165,22 @@ class Strategy():
         self.high_Arr= self.kline["High"].to_numpy()
         self.low_Arr= self.kline["Low"].to_numpy() 
             
-    def get_price_percent(self):
-        ##200 日最高和最低价格 2*101 天
-        ## days to seconds 
+    def trade_amount_compute(self,price,trade_side):
         period = int(self.price_percent_period/len(self.kline)*24*3600 )
         my_dataset = pd.DataFrame(self.quantcenter.fetch_kline(period)
         Max_price = my_dataset.High.max()
         Min_price = my_dataset.Low.min()
-        price_percent = (self.Buy_price-Min_price)/(Max_price-Min_price)
-        return price_percent
-    def trade_amount_compute(self,price_percent,trade_side):
+        price_percent = (price-Min_price)/(Max_price-Min_price)
         if  trade_side == "buy":
             ##高估区间不买入
-            if self.Buy_price > Max_price*self.price_threshold["buy"]:
+            if price > Max_price*self.price_threshold["buy"]:
                 return False 
             ##percent =1 amount =0  percent = 0 amount =1 
-            self.min_buy_amount = self.position_max_percent*self.potential_buy_amount *(1.0-price_percent)
+            self.min_buy_amount = self.position_max_percent*self.Balance/price *(1.0-price_percent)
             self.min_buy_amount = max(self.min_buy_amount,0.0)
-            self.min_buy_amount = min(self.min_buy_amount,self.potential_buy_amount)
+            self.min_buy_amount = min(self.min_buy_amount,self.Balance/price)
             self.min_buy_amount = round(self.min_buy_amount,self.amount_N)
-            self.min_buy_balance = self.min_buy_amount*self.Buy_price
+            self.min_buy_balance = self.min_buy_amount*price
             if self.min_buy_balance < self.min_buy_money:
                 return False
             else:
@@ -192,14 +188,14 @@ class Strategy():
            
         elif trade_side == "sell":
             ##低估不卖出
-            if  self.Sell_price < Min_price*self.price_threshold["sell"]:
+            if  price < Min_price*self.price_threshold["sell"]:
                 return False 
             ##percent =1 amount =1  percent = 0 amount =0 
-            self.min_sell_amount = self.position_max_percent*self.potential_sell_amount *price_percent
+            self.min_sell_amount = self.position_max_percent*self.amount_N *price_percent
             self.min_sell_amount = max(self.min_sell_amount,0.0)
-            self.min_sell_amount = min(self.min_sell_amount,self.potential_sell_amount)
+            self.min_sell_amount = min(self.min_sell_amount,self.Amount)
             self.min_sell_amount = round(self.min_sell_amount,self.amount_N)
-            self.min_sell_balance = self.min_sell_amount*self.Sell_price
+            self.min_sell_balance = self.min_sell_amount*price
             if self.min_sell_balance <self.min_sell_money:
                 return False 
             else:
@@ -215,23 +211,26 @@ class Strategy():
             ##过低开多单,过高开空单
             if price_percent < 0.5:
                 trade_price = round(self.quantcenter.Bids *(1.0 - self.price_gap),self.price_N)
-                trade_amount
-                trade_id = self.quantcenter.create_order("buy",trade_price,self.args.trade_amount_constant)
-                if trade_id:
-                    self.buy_orders.append({ 
-                           "side":"buy",
-                           "price":trade_price,
-                           "amount":self.args.trade_amount_constant,
-                           "id":trade_id  })
+                will_trade=trade_amount_compute(trade_price,"buy")
+                if will_trade:
+                    trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
+                    if trade_id:
+                        self.buy_orders.append({ 
+                               "side":"buy",
+                               "price":trade_price,
+                               "amount":self.min_buy_amount,
+                               "id":trade_id  })
             else:
                 trade_price = round(self.quantcenter.Asks *(1.0 + self.price_gap),self.price_N)
-                trade_id = self.quantcenter.create_order("sell",trade_price,self.args.trade_amount_constant)
-                if trade_id:
-                    self.sell_orders.append({ 
-                           "side":"sell",
-                           "price":trade_price,
-                           "amount":self.args.trade_amount_constant,
-                           "id":trade_id  })
+                will_trade=trade_amount_compute(trade_price,"sell")
+                if will_trade:
+                    trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
+                    if trade_id:
+                        self.sell_orders.append({ 
+                               "side":"sell",
+                               "price":trade_price,
+                               "amount":self.min_sell_amount,
+                               "id":trade_id  })
                 
         ##取消高价买入订单，低价卖出订单
         if len(self.buy_orders) > int(self.max_orders):
@@ -257,23 +256,25 @@ class Strategy():
                 buy_del_orders.append(order)
                 ##止盈单
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
-                trade_id = self.quantcenter.create_order("sell",trade_price,self.trade_amount_constant)
+                trade_id = self.quantcenter.create_order("sell",trade_price,order["amount"])
                 if trade_id:
                     new_sell_orders.append({ 
                            "side":"sell",
                            "price":trade_price,
-                           "amount":self.trade_amount_constant,
+                           "amount":order["amount"],
                            "id":trade_id  })
         
                 ##趋势单
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
-                trade_id = self.quantcenter.create_order("buy",trade_price,self.trade_amount_constant)  
-                if trade_id:
-                    new_buy_orders.append({ 
-                           "side":"buy",
-                           "price":trade_price,
-                           "amount":self.trade_amount_constant,
-                           "id":trade_id  })
+                will_trade=trade_amount_compute(trade_price,"buy")
+                if will_trade:
+                    trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
+                    if trade_id:
+                        new_buy_orders.append({ 
+                               "side":"buy",
+                               "price":trade_price,
+                               "amount":self.min_buy_amount,
+                               "id":trade_id  })
             else:
                 self.quantcenter.cancel_order(order["id"])
                 buy_del_orders.append(order)
@@ -286,22 +287,24 @@ class Strategy():
                 sell_del_orders.append(order)
             
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
-                trade_id = self.quantcenter.create_order("buy",trade_price,self.trade_amount_constant)  
+                trade_id = self.quantcenter.create_order("buy",trade_price,order["amount"])  
                 if trade_id:
                     new_buy_orders.append({ 
                            "side":"buy",
                            "price":trade_price,
-                           "amount":self.trade_amount_constant,
+                           "amount":order["amount"],
                            "id":trade_id  })
                 ##高处下卖单
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
-                trade_id = self.quantcenter.create_order("sell",trade_price,self.trade_amount_constant)
-                if trade_id:
-                    new_sell_orders.append({ 
-                           "side":"sell",
-                           "price":trade_price,
-                           "amount":self.trade_amount_constant,
-                           "id":trade_id  })
+                will_trade=trade_amount_compute(trade_price,"sell")
+                if will_trade:
+                    trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
+                    if trade_id:
+                        new_sell_orders.append({ 
+                               "side":"sell",
+                               "price":trade_price,
+                               "amount":self.min_sell_amount,
+                               "id":trade_id  })
             else:
                 self.quantcenter.cancel_order(order["id"])
                 sell_del_orders.append(order)
@@ -347,11 +350,8 @@ def main():
         try:
             ## refresh_data and indicator 
             strategy.refresh_data(args.kline_period)
-
-            now_trade_dicts = strategy.make_trade_dicts()
-            if now_trade_dicts:
-                strategy.make_trade_by_dict(now_trade_dicts)
-                now_trade_dicts =False
+            strategy.deal_over_orders()
+            strategy.deal_order()  
         except:
                 pass 
 
