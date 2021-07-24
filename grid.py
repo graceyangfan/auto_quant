@@ -144,6 +144,7 @@ class Strategy():
         self.price_threshold = args.price_threshold 
         self.position_max_percent = args.position_max_percent 
         self.price_percent_period = args.price_percent_period
+        self.user_price_period = int(self.price_percent_period/len(self.kline)*24*3600 )
         self.price_gap = args.price_gap
         self.trade_amount_constant = args.trade_amount_constant 
         self.max_orders = args.max_orders 
@@ -164,13 +165,13 @@ class Strategy():
         self.close_Arr= self.kline["Close"].to_numpy()
         self.high_Arr= self.kline["High"].to_numpy()
         self.low_Arr= self.kline["Low"].to_numpy() 
+        ##update user_define_price_percent 
+        self.user_dataset = pd.DataFrame(self.quantcenter.fetch_kline(self.user_price_period)
+        self.user_Max_price = self.user_dataset.High.max()
+        self.user_Min_price = self.user_dataset.Low.min()
             
     def trade_amount_compute(self,price,trade_side):
-        period = int(self.price_percent_period/len(self.kline)*24*3600 )
-        my_dataset = pd.DataFrame(self.quantcenter.fetch_kline(period)
-        Max_price = my_dataset.High.max()
-        Min_price = my_dataset.Low.min()
-        price_percent = (price-Min_price)/(Max_price-Min_price)
+        price_percent = (price-self.user_Min_price)/(self.user_Max_price-self.user_Min_price)
         if  trade_side == "buy":
             ##高估区间不买入
             if price > Max_price*self.price_threshold["buy"]:
@@ -191,7 +192,7 @@ class Strategy():
             if  price < Min_price*self.price_threshold["sell"]:
                 return False 
             ##percent =1 amount =1  percent = 0 amount =0 
-            self.min_sell_amount = self.position_max_percent*self.amount_N *price_percent
+            self.min_sell_amount = self.position_max_percent*self.Amount *price_percent
             self.min_sell_amount = max(self.min_sell_amount,0.0)
             self.min_sell_amount = min(self.min_sell_amount,self.Amount)
             self.min_sell_amount = round(self.min_sell_amount,self.amount_N)
@@ -207,7 +208,8 @@ class Strategy():
     订单过多或者过少
     '''
         if len(self.buy_orders)+len(self.sell_orders) < 1:
-            price_percent = self.get_price_percent()
+            avg_price = (self.quantcenter.Asks+self.quantcenter.Bids)/2.0
+            price_percent = (avg_price-self.user_Min_price)/(self.user_Max_price-self.user_Min_price)
             ##过低开多单,过高开空单
             if price_percent < 0.5:
                 trade_price = round(self.quantcenter.Bids *(1.0 - self.price_gap),self.price_N)
