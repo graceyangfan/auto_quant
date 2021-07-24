@@ -243,12 +243,14 @@ class Strategy():
             trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
+ 
                 self.buy_orders.remove(cancel_order)
     
         if len(self.sell_orders) > int(self.max_orders):
             trade_list = sorted(self.sell_orders,key = lambda x: float(x['price']), reverse=False) 
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
+ 
                 self.sell_orders.remove(cancel_order)
             
     def deal_order(self):
@@ -256,7 +258,10 @@ class Strategy():
         sell_del_orders = []
         new_buy_orders = []
         new_sell_orders = [] 
-        for order in self.buy_orders:
+        ##deal buy orders 
+        trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
+        ##new orders should not be remove 
+        for order in trade_list:
             order_state = self.quantcenter.fetch_order(order["id"])["Status"]
             if order_state == ORDER_STATE_CLOSED:
                 buy_del_orders.append(order)
@@ -282,12 +287,14 @@ class Strategy():
                                "amount":self.min_buy_amount,
                                "id":trade_id  })
             else:
-                self.quantcenter.cancel_order(order["id"])
-                buy_del_orders.append(order)
+                if order["id"] != self.buy_orders[-1]["id"]:
+                    self.quantcenter.cancel_order(order["id"])
+                    buy_del_orders.append(order)
         for order in buy_del_orders:
             self.buy_orders.remove(order)
         ##卖单处理
-        for order in self.sell_orders:
+        trade_list = sorted(self.sell_orders,key = lambda x: float(x["price"]), reverse=False)
+        for order in trade_list:
             order_state = self.quantcenter.fetch_order(order["id"])["Status"]
             if order_state == ORDER_STATE_CLOSED:
                 sell_del_orders.append(order)
@@ -312,8 +319,9 @@ class Strategy():
                                "amount":self.min_sell_amount,
                                "id":trade_id  })
             else:
-                self.quantcenter.cancel_order(order["id"])
-                sell_del_orders.append(order)
+                if order["id"] != self.sell_orders[-1]["id"]:
+                    self.quantcenter.cancel_order(order["id"])
+                    sell_del_orders.append(order)
         for order in sell_del_orders:
             self.sell_orders.remove(order)
     
@@ -337,7 +345,7 @@ class Args():
                       "sell":1.001}
     ## true_period (Days) 
     price_percent_period =  7 
-    price_gap = 0.008
+    price_gap = 0.01
     trade_amount_constant = 1 
     max_orders =  5
     
