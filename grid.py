@@ -224,7 +224,7 @@ class Strategy():
                     if trade_id:
                         ##once create order 
                         ##update balnace and amout 
-                        self.quantcenter.update_account()
+                        self.refresh_data(self.args.kline_period)
                         self.buy_orders.append({ 
                                "side":"buy",
                                "price":trade_price,
@@ -239,7 +239,7 @@ class Strategy():
                     if trade_id:
                         ##once create order 
                         ##update balnace and amout 
-                        self.quantcenter.update_account()
+                        self.refresh_data(self.args.kline_period)
                         self.sell_orders.append({ 
                                "side":"sell",
                                "price":trade_price,
@@ -252,14 +252,14 @@ class Strategy():
             trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
-                self.quantcenter.update_account()
+                self.refresh_data(self.args.kline_period)
                 self.buy_orders.remove(cancel_order)
     
         if len(self.sell_orders) > int(self.max_orders):
             trade_list = sorted(self.sell_orders,key = lambda x: float(x['price']), reverse=False) 
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
-                self.quantcenter.update_account()
+                self.refresh_data(self.args.kline_period)
                 self.sell_orders.remove(cancel_order)
             
     def deal_order(self):
@@ -278,7 +278,7 @@ class Strategy():
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
                 trade_id = self.quantcenter.create_order("sell",trade_price,order["amount"])
                 if trade_id:
-                    self.quantcenter.update_account()
+                    self.refresh_data(self.args.kline_period)
                     new_sell_orders.append({ 
                            "side":"sell",
                            "price":trade_price,
@@ -290,7 +290,7 @@ class Strategy():
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
                 will_trade=self.trade_amount_compute(trade_price,"buy")
                 if will_trade:
-                    self.quantcenter.update_account()
+                    self.refresh_data(self.args.kline_period)
                     trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
                     if trade_id:
                         new_buy_orders.append({ 
@@ -320,7 +320,7 @@ class Strategy():
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
                 trade_id = self.quantcenter.create_order("buy",trade_price,order["amount"])  
                 if trade_id:
-                    self.quantcenter.update_account()
+                    self.refresh_data(self.args.kline_period)
                     new_buy_orders.append({ 
                            "side":"buy",
                            "price":trade_price,
@@ -333,7 +333,7 @@ class Strategy():
                 if will_trade:
                     trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
                     if trade_id:
-                        self.quantcenter.update_account()
+                        self.refresh_data(self.args.kline_period)
                         new_sell_orders.append({ 
                                "side":"sell",
                                "price":trade_price,
