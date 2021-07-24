@@ -50,11 +50,18 @@ class QuantCenter():
     def update_depth(self):
         self.Asks = None
         self.Bids = None
-        
+        self.Asks_Price1= None 
+        self.Asks_Amount1 = None 
+        self.Bids_Price1= None 
+        self.Bids_Amount1 = None 
         try:
             self.Depth = self.exchange.GetDepth()
             self.Asks = self.Depth['Asks']
             self.Bids = self.Depth ['Bids']
+            self.Asks_Price1 = self.Asks[0]["Price"]
+            self.Asks_Amount1 = self.Asks[0]["Amount"]
+            self.Bids_Price1 = self.Bids[0]["Price"]
+            self.Bids_Amount1 = self.Bids[0]["Amount"]
             return True
         except:
             return False
@@ -135,7 +142,7 @@ class Strategy():
         
         self.min_buy_money=args.min_buy_money
         self.min_sell_money=args.min_sell_money
-        self.quantcenter.get_kline(args.kline_period)
+        self.quantcenter.update_kline(args.kline_period)
         self.kline = pd.DataFrame(self.quantcenter.Kline)
         ##record orders
         self.buy_orders = []
@@ -166,7 +173,7 @@ class Strategy():
         self.high_Arr= self.kline["High"].to_numpy()
         self.low_Arr= self.kline["Low"].to_numpy() 
         ##update user_define_price_percent 
-        self.user_dataset = pd.DataFrame(self.quantcenter.fetch_kline(self.user_price_period)
+        self.user_dataset = pd.DataFrame(self.quantcenter.fetch_kline(self.user_price_period))
         self.user_Max_price = self.user_dataset.High.max()
         self.user_Min_price = self.user_dataset.Low.min()
             
@@ -204,16 +211,13 @@ class Strategy():
         
         
     def deal_over_orders(self):
-    '''
-    订单过多或者过少
-    '''
         if len(self.buy_orders)+len(self.sell_orders) < 1:
-            avg_price = (self.quantcenter.Asks+self.quantcenter.Bids)/2.0
+            avg_price = (self.quantcenter.Asks_Price1+self.quantcenter.Bids_Price1)/2.0
             price_percent = (avg_price-self.user_Min_price)/(self.user_Max_price-self.user_Min_price)
             ##过低开多单,过高开空单
             if price_percent < 0.5:
-                trade_price = round(self.quantcenter.Bids *(1.0 - self.price_gap),self.price_N)
-                will_trade=trade_amount_compute(trade_price,"buy")
+                trade_price = round(self.quantcenter.Bids_Price1*(1.0 - self.price_gap),self.price_N)
+                will_trade=self.trade_amount_compute(trade_price,"buy")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
                     if trade_id:
@@ -223,8 +227,8 @@ class Strategy():
                                "amount":self.min_buy_amount,
                                "id":trade_id  })
             else:
-                trade_price = round(self.quantcenter.Asks *(1.0 + self.price_gap),self.price_N)
-                will_trade=trade_amount_compute(trade_price,"sell")
+                trade_price = round(self.quantcenter.Asks_Price1*(1.0 + self.price_gap),self.price_N)
+                will_trade=self.trade_amount_compute(trade_price,"sell")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
                     if trade_id:
@@ -236,13 +240,13 @@ class Strategy():
                 
         ##取消高价买入订单，低价卖出订单
         if len(self.buy_orders) > int(self.max_orders):
-            trade_list = sorted(self.buy_orders,lambda x: float(x['price'], reverse=True) 
+            trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
                 self.buy_orders.remove(cancel_order)
     
         if len(self.sell_orders) > int(self.max_orders):
-            trade_list = sorted(self.sell_orders,lambda x: float(x['price'], reverse=False) 
+            trade_list = sorted(self.sell_orders,key = lambda x: float(x['price']), reverse=False) 
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
                 self.sell_orders.remove(cancel_order)
@@ -268,7 +272,7 @@ class Strategy():
         
                 ##趋势单
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
-                will_trade=trade_amount_compute(trade_price,"buy")
+                will_trade=self.trade_amount_compute(trade_price,"buy")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
                     if trade_id:
@@ -298,7 +302,7 @@ class Strategy():
                            "id":trade_id  })
                 ##高处下卖单
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
-                will_trade=trade_amount_compute(trade_price,"sell")
+                will_trade=self.trade_amount_compute(trade_price,"sell")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
                     if trade_id:
@@ -356,4 +360,3 @@ def main():
             strategy.deal_order()  
         except:
                 pass 
-
