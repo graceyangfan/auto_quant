@@ -174,7 +174,7 @@ class Strategy():
         price_percent = (price-self.user_Min_price)/(self.user_Max_price-self.user_Min_price)
         if  trade_side == "buy":
             ##高估区间不买入
-            if price > Max_price*self.price_threshold["buy"]:
+            if price > self.user_Max_price*self.price_threshold["buy"]:
                 return False 
             ##percent =1 amount =0  percent = 0 amount =1 
             self.min_buy_amount = self.position_max_percent*self.Balance/price *(1.0-price_percent)
@@ -189,7 +189,7 @@ class Strategy():
            
         elif trade_side == "sell":
             ##低估不卖出
-            if  price < Min_price*self.price_threshold["sell"]:
+            if  price < self.user_Min_price*self.price_threshold["sell"]:
                 return False 
             ##percent =1 amount =1  percent = 0 amount =0 
             self.min_sell_amount = self.position_max_percent*self.Amount *price_percent
