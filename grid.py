@@ -155,6 +155,7 @@ class Strategy():
         self.price_gap = args.price_gap
         self.trade_amount_constant = args.trade_amount_constant 
         self.max_orders = args.max_orders 
+        self.order_max_wait_time = args.order_max_wait_time
         
         
     def refresh_data(self,period):
@@ -221,36 +222,44 @@ class Strategy():
                 if will_trade:
                     trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
                     if trade_id:
+                        ##once create order 
+                        ##update balnace and amout 
+                        self.quantcenter.update_account()
                         self.buy_orders.append({ 
                                "side":"buy",
                                "price":trade_price,
                                "amount":self.min_buy_amount,
-                               "id":trade_id  })
+                               "id":trade_id,
+                               "timestamp":Unix()})
             else:
                 trade_price = round(self.quantcenter.Asks_Price1*(1.0 + self.price_gap),self.price_N)
                 will_trade=self.trade_amount_compute(trade_price,"sell")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
                     if trade_id:
+                        ##once create order 
+                        ##update balnace and amout 
+                        self.quantcenter.update_account()
                         self.sell_orders.append({ 
                                "side":"sell",
                                "price":trade_price,
                                "amount":self.min_sell_amount,
-                               "id":trade_id  })
+                               "id":trade_id,
+                               "timestamp":Unix()})
                 
         ##取消高价买入订单，低价卖出订单
         if len(self.buy_orders) > int(self.max_orders):
             trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
- 
+                self.quantcenter.update_account()
                 self.buy_orders.remove(cancel_order)
     
         if len(self.sell_orders) > int(self.max_orders):
             trade_list = sorted(self.sell_orders,key = lambda x: float(x['price']), reverse=False) 
             cancel_order=trade_list[0]
             if self.quantcenter.cancel_order(cancel_order["id"]):
- 
+                self.quantcenter.update_account()
                 self.sell_orders.remove(cancel_order)
             
     def deal_order(self):
@@ -269,27 +278,36 @@ class Strategy():
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
                 trade_id = self.quantcenter.create_order("sell",trade_price,order["amount"])
                 if trade_id:
+                    self.quantcenter.update_account()
                     new_sell_orders.append({ 
                            "side":"sell",
                            "price":trade_price,
                            "amount":order["amount"],
-                           "id":trade_id  })
+                           "id":trade_id,
+                           "timestamp":Unix()})
         
                 ##趋势单
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
                 will_trade=self.trade_amount_compute(trade_price,"buy")
                 if will_trade:
+                    self.quantcenter.update_account()
                     trade_id = self.quantcenter.create_order("buy",trade_price,self.min_buy_amount)
                     if trade_id:
                         new_buy_orders.append({ 
                                "side":"buy",
                                "price":trade_price,
                                "amount":self.min_buy_amount,
-                               "id":trade_id  })
+                               "id":trade_id,
+                               "timestamp":Unix()})
+            elif order_state == ORDER_STATE_CANCELED:
+                buy_del_orders.append(order) 
             else:
-                if order["id"] != self.buy_orders[-1]["id"]:
+                ## 快进快出，如果订单已经存在较长的时间还未成交应该取消订单
+                if  Unix() - order["timestamp"] > self.order_max_wait_time:
                     self.quantcenter.cancel_order(order["id"])
-                    buy_del_orders.append(order)
+                    buy_del_orders.append(order) 
+ 
+
         for order in buy_del_orders:
             self.buy_orders.remove(order)
         ##卖单处理
@@ -302,26 +320,34 @@ class Strategy():
                 trade_price = round(order["price"] *(1.0 - self.price_gap),self.price_N)
                 trade_id = self.quantcenter.create_order("buy",trade_price,order["amount"])  
                 if trade_id:
+                    self.quantcenter.update_account()
                     new_buy_orders.append({ 
                            "side":"buy",
                            "price":trade_price,
                            "amount":order["amount"],
-                           "id":trade_id  })
+                           "id":trade_id,
+                           "timestamp":Unix()})
                 ##高处下卖单
                 trade_price = round(order["price"] *(1.0 + self.price_gap),self.price_N)
                 will_trade=self.trade_amount_compute(trade_price,"sell")
                 if will_trade:
                     trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
                     if trade_id:
+                        self.quantcenter.update_account()
                         new_sell_orders.append({ 
                                "side":"sell",
                                "price":trade_price,
                                "amount":self.min_sell_amount,
-                               "id":trade_id  })
+                               "id":trade_id,
+                               "timestamp":Unix()})
+            elif order_state == ORDER_STATE_CANCELED:
+                sell_del_orders.append(order) 
             else:
-                if order["id"] != self.sell_orders[-1]["id"]:
+                ## 快进快出，如果订单已经存在较长的时间还未成交应该取消订单
+                if  Unix() - order["timestamp"] > self.order_max_wait_time:
                     self.quantcenter.cancel_order(order["id"])
-                    sell_del_orders.append(order)
+                    sell_del_orders.append(order) 
+            
         for order in sell_del_orders:
             self.sell_orders.remove(order)
     
@@ -344,11 +370,11 @@ class Args():
     price_threshold = {"buy":0.999,
                       "sell":1.001}
     ## true_period (Days) 
-    price_percent_period =  7 
-    price_gap = 0.01
+    price_percent_period =  21
+    price_gap = 0.005
     trade_amount_constant = 1 
     max_orders =  5
-    
+    order_max_wait_time = 1800
     quantcenter= QuantCenter(exchange) 
     
 
@@ -357,14 +383,16 @@ def main():
     args = Args() 
     strategy = Strategy(args) 
     strategy.refresh_data(args.kline_period)
+    ##create init order 
+    strategy.deal_over_orders()
     Log("refresh_data ok")
     while(True):
-        Sleep(1000*60*5)
+        Sleep(1000*60*60)
         #time.sleep(60)
         try:
             ## refresh_data and indicator 
             strategy.refresh_data(args.kline_period)
-            strategy.deal_over_orders()
             strategy.deal_order()  
+            strategy.deal_over_orders()
         except:
                 pass 
