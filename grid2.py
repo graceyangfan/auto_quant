@@ -1,3 +1,5 @@
+##较为完成的网格策略，在编写的时候要考虑各种情况，才能避免回测和实盘出错
+
 import numpy as np 
 import talib as TA
 import pandas as pd 
