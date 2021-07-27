@@ -240,24 +240,7 @@ class Strategy():
                                "type":"Exploration"
                                }
                         self.trade_pair.append([None,Exploration])
-            elif price_percent > 0.618:
-                trade_price = round(self.quantcenter.Asks_Price1*(1.0 + self.price_gap),self.price_N)
-                will_trade=self.trade_amount_compute(trade_price,"sell")
-                if will_trade:
-                    trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
-                    if trade_id:
-                        ##once create order 
-                        ##update balnace and amout 
-                        self.refresh_data(self.args.kline_period)
-                        Exploration = { 
-                               "side":"sell",
-                               "price":trade_price,
-                               "amount":self.min_sell_amount,
-                               "id":trade_id,
-                               "timestamp":Unix(),
-                                "type":"Exploration"
-                               }
-                        self.trade_pair.append([None,Exploration])
+
 
             
     def deal_order(self):
