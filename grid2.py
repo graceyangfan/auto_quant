@@ -1,4 +1,8 @@
-##较为完成的网格策略，在编写的时候要考虑各种情况，才能避免回测和实盘出错
+###编写过程中遇到的问题以及解决办法（PS:主要是由于部分利用单无法成交引起）
+###利用单成交后，不应该再挂两个探索单，因为那些很长时间没有成交的利用单和新的探索单的价格相差不多时，
+###会出现挂了多个相近价格的单。
+###另外要即使清理长时间无法成交的单
+
 
 import numpy as np 
 import talib as TA
@@ -236,29 +240,29 @@ class Strategy():
                                "type":"Exploration"
                                }
                         self.trade_pair.append([None,Exploration])
-            # elif price_percent > 0.618:
-            #     trade_price = round(self.quantcenter.Asks_Price1*(1.0 + self.price_gap),self.price_N)
-            #     will_trade=self.trade_amount_compute(trade_price,"sell")
-            #     if will_trade:
-            #         trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
-            #         if trade_id:
-            #             ##once create order 
-            #             ##update balnace and amout 
-            #             self.refresh_data(self.args.kline_period)
-            #             Exploration = { 
-            #                    "side":"sell",
-            #                    "price":trade_price,
-            #                    "amount":self.min_sell_amount,
-            #                    "id":trade_id,
-            #                    "timestamp":Unix(),
-            #                     "type":"Exploration"
-            #                    }
-            #             self.trade_pair.append([None,Exploration])
+            elif price_percent > 0.618:
+                trade_price = round(self.quantcenter.Asks_Price1*(1.0 + self.price_gap),self.price_N)
+                will_trade=self.trade_amount_compute(trade_price,"sell")
+                if will_trade:
+                    trade_id = self.quantcenter.create_order("sell",trade_price,self.min_sell_amount)
+                    if trade_id:
+                        ##once create order 
+                        ##update balnace and amout 
+                        self.refresh_data(self.args.kline_period)
+                        Exploration = { 
+                               "side":"sell",
+                               "price":trade_price,
+                               "amount":self.min_sell_amount,
+                               "id":trade_id,
+                               "timestamp":Unix(),
+                                "type":"Exploration"
+                               }
+                        self.trade_pair.append([None,Exploration])
 
             
     def deal_order(self):
         ##先遍历探索再遍历利用
-        if len(self.trade_pair) < 1:
+        if len(self.trade_pair) <1 :
             self.init_orders()
         ##没有好的入场机会，不进入网格交易
         if len(self.trade_pair) < 1:
@@ -268,6 +272,20 @@ class Strategy():
         new_pairs = [] 
         ##可能情况
         ##[None，探索] [利用，探索] [利用，None] [探索，探索] [None,None]
+        ##取消超时订单
+        for pair in self.trade_pair:
+            for item in pair:
+                if item is not None and  Unix() - item["timestamp"] > self.order_max_wait_time:
+                    self.quantcenter.cancel_order(item["id"])
+        ##检查order_status 是否已经被取消
+        for i in range(len(self.trade_pair)):
+            for j in range(len(self.trade_pair[i])):
+                item = self.trade_pair[i][j]
+                if item is not None:
+                    order_state = self.quantcenter.fetch_order(item["id"])["Status"]
+                    if order_state == ORDER_STATE_CANCELED:
+                        self.trade_pair[i][j]=None       
+        
         for pair in self.trade_pair:
             if pair[0] is None:
                 if pair[1] is None:
@@ -302,7 +320,6 @@ class Strategy():
                     del_pairs.append(pair)
                     if pair[1] is not None:
                         self.quantcenter.cancel_order(pair[1]["id"])
-                    new_pairs.append(self.create_pair_order(pair[0])) 
                 else:
                     if pair[1] is not None:
                         order_status1 = self.quantcenter.fetch_order(pair[1]["id"])["Status"]
@@ -310,9 +327,8 @@ class Strategy():
                             del_pairs.append(pair)
                             new_pairs.append([pair[0],None])
                             ##下新的订单
-                            new_pairs.append(self.create_pair_order(pair[1])) 
-                        
-                         
+                            new_pairs.append(self.create_pair_order(pair[1]))
+                                             
         for pair in del_pairs:
             self.trade_pair.remove(pair)
         for pair in new_pairs:
@@ -377,7 +393,7 @@ class Args():
     price_gap = 0.01
     trade_amount_constant = 1 
     max_orders =  5
-    order_max_wait_time = 1000*60*5
+    order_max_wait_time = 60*60*12
     quantcenter= QuantCenter(exchange) 
     
 
@@ -390,7 +406,7 @@ def main():
     strategy.init_orders()
     Log("refresh_data ok")
     while(True):
-        Sleep(args.order_max_wait_time)
+        Sleep(1000*60*5)
         #time.sleep(60)
         try:
             ## refresh_data and indicator 
