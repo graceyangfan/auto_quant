@@ -279,19 +279,21 @@ class Strategy():
                         new_pairs.append(self.create_pair_order(pair[1]))
             elif pair[0]["type"] == "Exploration":
                 order_status0 = self.quantcenter.fetch_order(pair[0]["id"])["Status"]
-                order_status1 = self.quantcenter.fetch_order(pair[1]["id"])["Status"]
                 if order_status0 == ORDER_STATE_CLOSED:
                     del_pairs.append(pair)
                     ##取消订单2 
-                    self.quantcenter.cancel_order(pair[1]["id"])
-                    ##下新的订单
+                    if pair[1] is not None:
+                        self.quantcenter.cancel_order(pair[1]["id"])
+                        ##下新的订单
                     new_pairs.append(self.create_pair_order(pair[0]))
-                if order_status1 == ORDER_STATE_CLOSED:
-                    del_pairs.append(pair)
-                    ##取消订单1
-                    self.quantcenter.cancel_order(pair[0]["id"])
-                    ##下新的订单
-                    new_pairs.append(self.create_pair_order(pair[1])) 
+                if pair[1] is not None:
+                    order_status1 = self.quantcenter.fetch_order(pair[1]["id"])["Status"]
+                    if order_status1 == ORDER_STATE_CLOSED:
+                        del_pairs.append(pair)
+                        ##取消订单1
+                        self.quantcenter.cancel_order(pair[0]["id"])
+                        ##下新的订单
+                        new_pairs.append(self.create_pair_order(pair[1])) 
             elif pair[0]["type"] == "Exploitation":
                 order_status0 = self.quantcenter.fetch_order(pair[0]["id"])["Status"]
                 if order_status0 == ORDER_STATE_CLOSED:
