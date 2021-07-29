@@ -1,6 +1,16 @@
+'''
+1.python默认浅copy，需要deepcopy才能复制
+2.list extend方法没有返回值，直接改变原有的list
+3.range函数，取不到最后一位
+4.新增订单超时处理和订单合并功能，确保每一个区间只有一个订单
+5.交易不宜太频繁
+'''
+
+
 import numpy as np 
 import talib as TA
 import pandas as pd 
+import copy
 
 class QuantCenter():
     def __init__(self,exchange):
@@ -247,28 +257,82 @@ class Strategy():
                                "id":trade_id,
                                "timestamp":Unix()})
                 
-        ##取消高价买入订单，低价卖出订单
-        if len(self.buy_orders) > int(self.max_orders):
-            trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
-            cancel_order=trade_list[0]
-            if self.quantcenter.cancel_order(cancel_order["id"]):
-                self.refresh_data(self.args.kline_period)
-                self.buy_orders.remove(cancel_order)
-    
-        if len(self.sell_orders) > int(self.max_orders):
-            trade_list = sorted(self.sell_orders,key = lambda x: float(x['price']), reverse=False) 
-            cancel_order=trade_list[0]
-            if self.quantcenter.cancel_order(cancel_order["id"]):
-                self.refresh_data(self.args.kline_period)
-                self.sell_orders.remove(cancel_order)
+
+        temp_orders = copy.deepcopy(self.buy_orders) 
+        temp_orders.extend(self.sell_orders)
+        if len(temp_orders) < 2:
+            return 0
+        trade_list = sorted(temp_orders,key = lambda x: float(x["price"]), reverse=False)
+        high_price = trade_list[-1]["price"]
+        low_price = trade_list[0]["price"]
+        grid_number = int((high_price - low_price)/low_price/self.price_gap)
+        if grid_number < 2:
+            grid_number = 2
+        Delta_price = (high_price-low_price)/(grid_number)
+        self.full_orders = []
+        for i in range(grid_number+1):
+            self.full_orders.append([])
+        for order in trade_list:
+            idx = int((order['price']-low_price)/Delta_price)
+            self.full_orders[idx].append(order)
+        ##create new order list 
+        self.buy_orders = [] 
+        self.sell_orders = [] 
+        for item in self.full_orders:
+            if len(item) == 0 :
+                pass 
+            elif len(item) == 1:
+                if item[0]["side"] == "buy":
+                    self.buy_orders.append(item[0])
+                else:
+                    self.sell_orders.append(item[0])
+            else:
+                trade_amount = 0.0 
+                for order in item:
+                    if order["side"] == "buy":
+                        trade_amount += order["amount"]
+                    else:
+                        trade_amount -= order["amount"]
+                    ##取消这些订单
+                    self.quantcenter.cancel_order(order["id"])
+                if trade_amount > 0:
+                    trade_price = item[0]["price"]
+                    trade_amount = round(trade_amount,self.price_N)
+                    if trade_price*trade_amount > self.min_buy_money:
+                        ## create new order 
+                        trade_id = self.quantcenter.create_order("buy",trade_price,trade_amount)
+                        self.refresh_data(self.args.kline_period)
+                        self.buy_orders.append({ 
+                               "side":"buy",
+                               "price":trade_price,
+                               "amount":trade_amount,
+                               "id":trade_id,
+                               "timestamp":Unix()})
+                else:
+                    trade_amount= - trade_amount
+                    trade_amount = round(trade_amount,self.price_N)
+                    trade_price = item[-1]["price"]
+                    if trade_price*trade_amount> self.min_sell_money:
+                        trade_id = self.quantcenter.create_order("sell",trade_price,trade_amount)
+                        self.refresh_data(self.args.kline_period)
+                        self.sell_orders.append({ 
+                               "side":"sell",
+                               "price":trade_price,
+                               "amount":trade_amount,
+                               "id":trade_id,
+                               "timestamp":Unix()})     
+
             
     def deal_order(self):
+        ##合并订单
         buy_del_orders = []
         sell_del_orders = []
         new_buy_orders = []
         new_sell_orders = [] 
+        
         ##deal buy orders 
         trade_list = sorted(self.buy_orders,key = lambda x: float(x["price"]), reverse=True)
+   
         ##new orders should not be remove 
         for order in trade_list:
             order_state = self.quantcenter.fetch_order(order["id"])["Status"]
@@ -350,8 +414,6 @@ class Strategy():
             
         for order in sell_del_orders:
             self.sell_orders.remove(order)
-    
-    
         ## add new order 
         for order in new_buy_orders:
             self.buy_orders.append(order)
@@ -366,7 +428,7 @@ class Args():
     min_sell_money =5 
     
     kline_period = PERIOD_M5
-    position_max_percent = 0.5 
+    position_max_percent = 0.1 
     price_threshold = {"buy":0.999,
                       "sell":1.001}
     ## true_period (Days) 
@@ -374,7 +436,7 @@ class Args():
     price_gap = 0.005
     trade_amount_constant = 1 
     max_orders =  5
-    order_max_wait_time = 1800
+    order_max_wait_time = 3600*4
     quantcenter= QuantCenter(exchange) 
     
 
@@ -387,7 +449,7 @@ def main():
     strategy.deal_over_orders()
     Log("refresh_data ok")
     while(True):
-        Sleep(1000*60*60)
+        Sleep(1000*60*5)
         #time.sleep(60)
         try:
             ## refresh_data and indicator 
