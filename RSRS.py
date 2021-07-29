@@ -1,3 +1,6 @@
+##Kline 周期不能太短，太短必亏钱
+
+
 import numpy as np 
 import talib as TA
 import pandas as pd 
@@ -278,8 +281,8 @@ class Args():
     min_buy_money =5 
     min_sell_money =5 
     
-    kline_period = PERIOD_M5
-    position_max_percent = 0.1 
+    kline_period = PERIOD_M15
+    position_max_percent = 0.7
     price_threshold = {"buy":0.999,
                       "sell":1.001}
     ## true_period (Days) 
@@ -287,8 +290,8 @@ class Args():
     price_slip = 2.5e-5
     ATR_period = 20 
     RSRS_period  = 18 
-    high_RSRS_threshold  = 0.7
-    low_RSRS_threshold = -0.7 
+    high_RSRS_threshold  = 0.8
+    low_RSRS_threshold = -0.3
     RSRS_avg_period = 600 
     quantcenter= QuantCenter(exchange) 
 
@@ -300,7 +303,7 @@ def main():
     strategy.RSRS_init()
     ##create init order 
     while(True):
-        Sleep(1000*60*5)
+        Sleep(1000*60*15)
         #time.sleep(60)
         try:
             ## refresh_data and indicator 
