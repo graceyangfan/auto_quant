@@ -1,4 +1,6 @@
-class PVPR:
+##https://cn.tradingview.com/support/solutions/43000502040/
+
+class VPVR:
     def __init__(self,value_area_pct):
         self.value_area_pct = value_area_pct
     def midmax_idx(self,array):
@@ -48,7 +50,7 @@ class PVPR:
 
         return self.profile.index[min_idx], self.profile.index[max_idx]
     
-    def pvpr_indicator(self,df):
+    def vpvr_indicator(self,df):
         self.profile = df.groupby("close")["volume"].sum()
         self.total_volume = self.profile.sum()
         self.profile_range = self.profile.index.min(), self.profile.index.max()
