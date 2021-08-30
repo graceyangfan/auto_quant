@@ -73,7 +73,6 @@ class  grid(bt.Strategy):
             else:
                 return True 
     def open_order(self):
-        self.update_data()
         price_percent = (self.data.close[0]-self.user_Min_price)/(self.user_Max_price-self.user_Min_price)
         if price_percent <0.618:
             trade_price =self.data.close[0]*0.9999 
@@ -93,6 +92,7 @@ class  grid(bt.Strategy):
             self.cancel(del_order)
             
     def next(self):
+        self.update_data()
         if len(self.buy_orders) + len(self.sell_orders) <2:
             self.open_order()
         buy_del_orders=[]
