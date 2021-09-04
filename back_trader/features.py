@@ -31,6 +31,6 @@ def get_model_input_tradition(df):
         df["AD_"+str(i)]=TA.SUM((df.close-df.low)/(df.high-df.low)*df.volume,windows)/TA.SUM(df.volume,windows)
         df["OBV_"+str(i)]=TA.SUM((np.sign(df.close.diff())*df.volume),windows)/TA.SUM(df.volume,windows)
         df["VPSUMP_"+str(i)]=TA.SUM((df.volume*df.close).diff().clip(0,None),windows)/TA.SUM((df.volume*df.close).diff().abs())
-        df["VPSUMN_"+str(i)]=TA.SUM((-(df.volume*df.close).diff(-1)).clip(0,None),windows)/TA.SUM((-(df.volume*df.close).diff(-1)).clip(0,None).abs())
+        df["VPSUMN_"+str(i)]=TA.SUM((-(df.volume*df.close).diff()).clip(0,None),windows)/TA.SUM((-(df.volume*df.close).diff()).clip(0,None).abs())
         df["VPSUMD_"+str(i)]=df["VPSUMP_"+str(i)]-df["VPSUMN_"+str(i)]
     return df
