@@ -28,7 +28,7 @@ def get_model_input_tradition(df):
         df["fastk_"+str(i)], df["fastd"+str(i)] = TA.STOCHF(df.high, df.low, df.close, fastk_period=windows, fastd_period=windows//2, fastd_matype=0)
         df["SRSI_fastk_"+str(i)],df["SRSI_fastd"+str(i)] =TA.STOCHRSI(df.close, timeperiod=windows, fastk_period=windows//2, fastd_period=windows//4, fastd_matype=0)
         ##与volume相关的
-        df["AD_"+str(i)]=TA.SUM((df.close-df.low)/(df.high-df.low)*df.volume,windows)/TA.SUM(df.volume,windows)
+        df["AD_"+str(i)]=TA.SUM((df.close-df.low)/(df.high-df.low+1e-12)*df.volume,windows)/TA.SUM(df.volume,windows)
         df["OBV_"+str(i)]=TA.SUM((np.sign(df.close.diff())*df.volume),windows)/TA.SUM(df.volume,windows)
         df["VPSUMP_"+str(i)]=TA.SUM((df.volume*df.close).diff().clip(0,None),windows)/TA.SUM((df.volume*df.close).diff().abs())
         df["VPSUMN_"+str(i)]=TA.SUM((-(df.volume*df.close).diff()).clip(0,None),windows)/TA.SUM((-(df.volume*df.close).diff()).clip(0,None).abs())
