@@ -91,3 +91,80 @@ def get_model_input_alpha158(df):
         df["VSUMN_"+str(i)]=TA.SUM((-df.volume+df.volume.shift(1)).clip(0,None),windows)/TA.SUM((df.volume-df.volume.shift(1)).abs())
         df["VSUMD_"+str(i)]=df["VSUMP_"+str(i)]-df["VSUMN_"+str(i)]
     return df
+
+
+def create_label(df):
+    zigzags = []
+    ATR_MULTIPILIER=2.0
+    def calc_change_since_pivot(row, key):
+        current = row[key]
+        last_pivot = zigzags[-1]["Value"]
+        if(last_pivot == 0): last_pivot = 1 ** (-100) # avoid division by 0
+        perc_change_since_pivot = (current - last_pivot) / abs(last_pivot)
+        return perc_change_since_pivot
+
+    def get_zigzag(row, taip=None):
+        if(taip == "Peak"): key = "high"
+        elif(taip == "Trough"): key = "low"
+        else: key = "close"
+
+        return {
+            "time": row["time"],
+            "Value": row[key],
+            "Type": taip 
+        }
+    for ix, row in df.iterrows():
+        threshold = row['ATR_1'] * ATR_MULTIPILIER
+        # handle first point
+        is_starting = ix == 0
+        if(is_starting):
+            zigzags.append(get_zigzag(row))
+            continue
+
+        # handle first line
+        is_first_line = len(zigzags) == 1
+        if(is_first_line):
+            perc_change_since_pivot = calc_change_since_pivot(row, "close")
+
+            if(abs(perc_change_since_pivot) >= threshold):
+                if(perc_change_since_pivot > 0):
+                    zigzags.append(get_zigzag(row, "Peak"))
+                    zigzags[0]["Type"] = "Trough"
+                else: 
+                    zigzags.append(get_zigzag(row, "Trough"))
+                    zigzags[0]["Type"] = "Peak"
+            continue
+    
+        # handle other lines
+        is_trough = zigzags[-2]["Value"] > zigzags[-1]["Value"]
+        is_ending = ix == len(df.index) - 1
+        last_pivot = float(zigzags[-1]["Value"])
+        # based on last pivot type, look for reversal or continuation
+        if(is_trough):
+            perc_change_since_pivot = calc_change_since_pivot(row, "high")
+            is_reversing = (perc_change_since_pivot >= threshold) or is_ending
+            is_continuing = row["low"] <= last_pivot
+            if (is_continuing): 
+                zigzags[-1] = get_zigzag(row, "Trough")
+            elif (is_reversing): 
+                zigzags.append(get_zigzag(row, "Peak"))
+        else:
+            perc_change_since_pivot = calc_change_since_pivot(row, "low")
+            is_reversing = (perc_change_since_pivot <= -threshold) or is_ending
+            is_continuing = row["high"] >= last_pivot
+            if(is_continuing): 
+                zigzags[-1] = get_zigzag(row, "Peak")
+            elif (is_reversing): 
+                zigzags.append(get_zigzag(row, "Trough"))
+    zigzags = pd.DataFrame(zigzags)
+    zigzags["PrevExt"] = zigzags.Value.shift(2)
+    higher_highs = zigzags.dropna()
+    higher_highs = higher_highs.loc[(higher_highs["Value"] > higher_highs["PrevExt"]) & (higher_highs["Type"] == "Peak") & (higher_highs.index != 2)]
+    lower_lows = zigzags.dropna()
+    lower_lows = lower_lows.loc[(lower_lows["Value"] < lower_lows["PrevExt"]) & (lower_lows["Type"] == "Trough") & (lower_lows.index != 2)]
+    new_type=pd.concat([lower_lows,higher_highs])
+
+    df=new_type.merge(df,left_on="time",right_on="time",how="right")
+    df.Type = df.Type.map({"Trough":1,"Peak":2})
+    df.Type=df.Type.replace(np.nan,0)
+    return df
