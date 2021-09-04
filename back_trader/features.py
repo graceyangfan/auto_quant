@@ -4,7 +4,7 @@ def get_model_input_tradition(df):
     dif,dea,val =TA.MACD(df.close,12,26,9)
     df["MACD_dif_dif_init"]=val.diff()/df.close*100
     for i,windows in enumerate(windows_list):
-        df["MOM_"+str(i)]=TA.MOM(df.close, timeperiod=windows)/df.close
+        #df["MOM_"+str(i)]=TA.MOM(df.close, timeperiod=windows)/df.close
         df["ATR_"+str(i)]=TA.ATR(df.high,df.low,df.close,windows)/df.close
         ##RSV分子和分母
         df["Dochian_upper_"+str(i)]=(TA.MAX(df["high"],windows)-df["close"])/df.close
