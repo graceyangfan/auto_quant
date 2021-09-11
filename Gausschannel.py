@@ -220,27 +220,27 @@ class Strategy():
         self.user_dataset = pd.DataFrame(self.quantcenter.fetch_kline(self.user_price_period))
         self.user_Max_price = self.user_dataset.High.max()
         self.user_Min_price = self.user_dataset.Low.min()
-    def check_order(self,order):
-        if order.Type == ORDER_TYPE_BUY:
-            if  order.Amount*order.Price/self.MarginLevel<self.min_buy_money or order.Amount > self.potential_buy_amount:
+    def check_order(self,order_side,price,amount):
+        if order_side == "openlong":
+            if  price*amount/self.MarginLevel<self.min_buy_money or amount > self.potential_buy_amount:
                 return False
             else:
                 return True
-        elif order.Type == ORDER_TYPE_SELL:
-            if order.Amount*order.Price/self.MarginLevel<self.min_sell_money or order.Amount > self.potential_sell_amount:
+        elif order_side == "openshort":
+            if price*amount/self.MarginLevel<self.min_sell_money or amount> self.potential_sell_amount:
                 return False
             else:
                 return True
     def next(self):
         ##update params 
-        self.unit = (self.Balance*self.MarginLevel*0.01)/(self.ATR[-1])*0.002
+        self.unit = (self.Balance*self.MarginLevel*0.01)/(self.ATR[-1])*0.02
         ##compute Indicator 
         mid = Gaussfilter(self.hlc3)
         hband = mid + 1.414* self.ATR
         lband = mid - 1.414* self.ATR
         ##开单信号
-        upcross = mid[-1] > mid [-2] and mid[-3] > mid[-2] and self.low_Arr[-1]> hband[-1]
-        downcross = mid[-1] < mid [-2] and mid[-3] < mid[-2] and self.high_Arr[-1] < lband[-1]
+        upcross = mid[-1] > mid [-2] and mid[-3] > mid[-2] and self.low_Arr[-1]> hband[-1] and self.hlc3[-1] > self.hlc3[-2]
+        downcross = mid[-1] < mid [-2] and mid[-3] < mid[-2] and self.high_Arr[-1] < lband[-1] and self.hlc3[-1] < self.hlc3[-2]
         ##(1)检查止盈止损单:
         del_buy_orders= []
         del_sell_orders = [] 
@@ -277,11 +277,13 @@ class Strategy():
         if upcross:
             self.quantcenter.update_ticker()
             #trade_price = self.close_Arr[-1]*1.001
-            trade_price = round(self.quantcenter.Last*0.99,self.price_N)
+            trade_side = "openlong"
+            trade_price = round(self.quantcenter.Last*0.9,self.price_N)
             trade_amount =  round(self.unit,self.amount_N)
-            order_id = self.quantcenter.openLong(trade_price,trade_amount)
-            self.buy_orders.append({ 
-                               "side":"openlong",
+            if self.check_order(trade_side,trade_price,trade_amount):
+                order_id = self.quantcenter.openLong(trade_price,trade_amount)
+                self.buy_orders.append({ 
+                               "side":trade_side,
                                "price":trade_price,
                                "amount":trade_amount,
                                "id":order_id,
@@ -289,11 +291,13 @@ class Strategy():
         if downcross:
             self.quantcenter.update_ticker()
             #trade_price = self.close_Arr[-1]*1.001
-            trade_price = round(self.quantcenter.Last*1.01,self.price_N)
+            trade_side = "openshort"
+            trade_price = round(self.quantcenter.Last*1.1,self.price_N)
             trade_amount = round(self.unit,self.amount_N)
-            order_id = self.quantcenter.openShort(trade_price,trade_amount)
-            self.sell_orders.append({ 
-                               "side":"openshort",
+            if self.check_order(trade_side,trade_price,trade_amount):
+                order_id = self.quantcenter.openShort(trade_price,trade_amount)
+                self.sell_orders.append({ 
+                               "side":trade_side,
                                "price":trade_price,
                                "amount":trade_amount,
                                "id":order_id,
