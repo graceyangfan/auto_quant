@@ -5,6 +5,8 @@ python script to develop classical quant strategy
 
 
 ## 常用库
+```
 pip install qlib 
 pip install TA-Lib  ( https://mrjbq7.github.io/ta-lib/install.html)
 pip install backtrader 
+```
