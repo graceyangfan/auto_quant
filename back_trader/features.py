@@ -168,3 +168,16 @@ def create_label(df):
     df.Type = df.Type.map({"Trough":1,"Peak":2})
     df.Type=df.Type.replace(np.nan,0)
     return df
+
+
+#因子测试有效因子，公开的因子确实效果都不是很好
+#(dfx["close"]-TA.MIN(dfx["low"],windows))/dfx.close 有效
+#TA.MINUS_DI(dfx.high, dfx.low, dfx.close, timeperiod=windows)/dfx.close 30,40以后有效
+#TA.MINUS_DM(dfx.high, dfx.low, timeperiod=windows)/dfx.close
+#TA.ULTOSC(dfx.high, dfx.low, dfx.close, timeperiod1=windows//3, timeperiod2=windows//2, timeperiod3=windows)
+#TA.STOCHF(df.high, df.low, df.close, fastk_period=windows, fastd_period=windows//2, fastd_matype=0) 10,20左右 
+#TA.STOCHRSI(df.close, timeperiod=windows, fastk_period=windows//2, fastd_period=windows//4, fastd_matype=0) 10,20,30
+##TA.SUM((df.close-df.low)/(df.high-df.low+1e-12)*df.volume,windows)/TA.SUM(df.volume,windows) 5,10,20，30,40
+#TA.SUM((dfx.volume*dfx.close).diff().clip(0,None),windows)/TA.SUM((dfx.volume*df.close).diff().abs())
+#TA.SUM((dfx.volume*dfx.close).diff().clip(0,None),windows)/TA.SUM((dfx.volume*df.close).diff().abs()) 10,20,30,40
+# TA.SUM((-(dfx.volume*dfx.close).diff()).clip(0,None),windows)/TA.SUM((-(dfx.volume*dfx.close).diff()).clip(0,None).abs())
