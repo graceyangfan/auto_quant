@@ -30,9 +30,13 @@ def get_model_input_tradition(df):
         ##与volume相关的
         df["AD_"+str(i)]=TA.SUM((df.close-df.low)/(df.high-df.low+1e-12)*df.volume,windows)/TA.SUM(df.volume,windows)
         df["OBV_"+str(i)]=TA.SUM((np.sign(df.close.diff())*df.volume),windows)/TA.SUM(df.volume,windows)
-        df["VPSUMP_"+str(i)]=TA.SUM((df.volume*df.close).diff().clip(0,None),windows)/TA.SUM((df.volume*df.close).diff().abs())
-        df["VPSUMN_"+str(i)]=TA.SUM((-(df.volume*df.close).diff()).clip(0,None),windows)/TA.SUM((-(df.volume*df.close).diff()).clip(0,None).abs())
-        df["VPSUMD_"+str(i)]=df["VPSUMP_"+str(i)]-df["VPSUMN_"+str(i)]
+        df["VPSUMP_"+str(i)]=TA.SUM((df.volume*df.close).diff().clip(0,None),windows)/TA.SUM((df.volume*df.close).diff().abs(),windows)
+        df["VPSUMN_"+str(i)]=TA.SUM((-(df.volume*df.close).diff()).clip(0,None),windows)/TA.SUM((-(df.volume*df.close).diff()).clip(0,None).abs(),windows)
+        df["VPSUMD_"+str(i)]=df["VPSUMP_"+str(i)]-df["VPSUMN_"+str(i)]        
+    for col in ["high","low","open"]:
+        df[col]=(df[col]-df["close"])/df["close"]
+    
+    df["volume"] = df["volume"]/TA.SUM(df.volume,360)*360
     return df
 
 def get_model_input_alpha158(df):
