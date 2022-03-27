@@ -32,6 +32,43 @@ class VPVR:
         while trial_vol <= target_vol:
             last_min = min_idx
             last_max = max_idx
+            
+def vpvr(datafeed,value_area_pct):
+    '''
+    V,C,H,L
+    '''
+    #1.find maxvol and poc 
+    max_vol_idx = np.argmax(datafeed.volume)
+    max_vol = datafeed.volume[max_vol_idx]
+    max_vol_POC = datafeed.close[max_vol_idx]
+    total_volume = np.sum(datafeed.volume)
+    target_volume = total_volume*value_area_pct 
+
+    ##samll to large 
+    close_sorted_index = np.argshort(datafeed.close)
+    poc_index_after_sorted = np.argwhere(close_sorted_index == max_vol_idx).flatten()[0]
+    import copy 
+    trial_vol = max_vol_POC
+    min_idx = poc_index_after_sorted
+    max_idx = poc_index_after_sorted 
+    ###以 close排序后的poc为中心向两端扩展 
+    while trial_vol <=target_volume:
+        next_min_idx = np.clip(min_idx-1,0,len(close_sorted_indx)-1)
+        next_max_idx = np.clip(max_idx+1,0,len(close_sorted_index)-1)
+        low_volume = datafeed.volume[close_sorted_index[next_min_idx]] if next_min_idx != min_idx or None 
+        high_volume = datafeed.volume[close_sorted_index[next_max_idx]] if next_max_idx !=max_idx or None 
+
+        if not high_volume or (low_volume and low_volume > high_volume):
+            trial_vol += low_volume 
+            min_idx = mext_min_idx 
+        elif not low_volume or (high_volume and low_volume <=high_volume):
+            trial_vol += high_volume
+            max_idx = next_max_idx
+        else:
+            break
+    
+    return max_vol_POC,datafeed.close[close_sorted_index[min_idx]],datafeed.close[close_sorted_index[max_idx]]
+    
 
             next_min_idx = np.clip(min_idx - 1, 0, len(self.profile) - 1)
             next_max_idx = np.clip(max_idx + 1, 0, len(self.profile) - 1)
